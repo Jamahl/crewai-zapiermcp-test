@@ -37,7 +37,7 @@ function render() {
             <div class="chat ${m.role === 'user' ? 'chat-end' : 'chat-start'} items-end">
               <div class="avatar ${m.role === 'user' ? 'hidden sm:inline-block' : 'inline-block'}">
                 <div class="w-8 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                  <img src="${m.role === 'user' ? 'https://api.dicebear.com/7.x/identicon/svg?seed=user' : 'https://api.dicebear.com/7.x/bottts/svg?seed=agent'}" alt="${m.role}" />
+                  <img src="${m.role === 'user' ? 'https://i.ibb.co/rKStJNDy/jamahlpic.jpg' : 'https://api.dicebear.com/7.x/bottts/svg?seed=agent'}" alt="${m.role}" />
                 </div>
               </div>
               <div>
