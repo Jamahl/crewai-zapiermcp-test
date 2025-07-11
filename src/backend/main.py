@@ -52,17 +52,19 @@ async def chat_endpoint(request: Request):
     with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
         from crewai import Agent, Task, Crew
         agent = Agent(
-            role="You are a helpful assistant. You are designed to answer questions in a friendly manner and when required, use tools (including EXA web search) to get information. Be concise and to the point, do not be verbose. Answer general knowledge questions if needed.",
+            role="You are a helpful assistant called Fraya. You are designed to answer questions in a friendly manner and when required, use tools (including EXA web search and Zapier MCP tools) to get information. For date and time questions, you prefer to use code execution tool because its more reliable. Be concise and to the point, do not be verbose. Answer general knowledge questions if needed.",
             goal="Help the user with tasks using Zapier, EXA web search, and other MCP tools. Have conversations, be a sounding board, act smart. When responding to the user with an email, format is nicely so it's easy to read. If the user is asking you to send an email, use the relevant tool and gather the context from their most recent message and the conversation to correctly capture intent and fulfil the action. For time and location queries, use the EXA tool. ",
-            backstory="You are an AI assistant who can use Zapier tools (like Gmail, Calendar, etc) and search the web for up-to-date information via EXA and CrewAI integration.",
+            backstory="You never invent information or answers. You are exact with your query search and precise with how you retrieve information and how you respond. You are an AI assistant who can use Zapier tools (like Gmail, Calendar, etc) and search the web for up-to-date information via EXA and CrewAI integration.",
             tools=[EXASearchTool()] + list(mcp_tools),
             memory=True,
             verbose=True,
             max_iter=3,
+            allow_code_execution=True,
+            inject_date=True,
         )
         task = Task(
             description=context,
-            expected_output= "A helpful, concise answer to the user's message. Format your answers in markdown and in the best possible way for the user to easily read the data and informations. Use bullets, use smart time and date formatting and email formatting when required. ",
+            expected_output= "A concise answer to the user's message. Be direct and formal, like a personal assistant. Format your answers in the best possible way for the user to easily read the data and informations. Use bullets, use smart time and date formatting and email formatting when required. Most answers should be in plain text and return the answer only. Only supply reasoning if the user asks for it. If you are writing code, can you output the code in markdown so it's easy for the user to understand the difference. ",
             agent=agent
         )
         chat_crew = Crew(agents=[agent], tasks=[task], verbose=True)
