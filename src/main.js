@@ -15,7 +15,11 @@ function renderAgentMarkdown(md) {
       </div>
     `;
   };
-  return marked.parse(md, { renderer });
+  const rawHtml = marked.parse(md, { renderer });
+  // Wrap every anchor in a DaisyUI badge
+  return rawHtml.replace(/<a ([^>]+)>(.*?)<\/a>/g, (_m, attrs, inner) =>
+    `<span class="kbd"><a ${attrs}>${inner}</a></span>`
+  );
 }
 
 // Escape HTML utility for user messages
