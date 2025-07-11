@@ -15,9 +15,6 @@ function renderAgentMarkdown(md) {
       </div>
     `;
   };
-  renderer.link = (href, title, text) => {
-    return `<a href="${escapeHTML(href)}" class="text-primary underline hover:text-secondary" target="_blank" rel="noopener">${escapeHTML(text)}</a>`;
-  };
   return marked.parse(md, { renderer });
 }
 
@@ -129,19 +126,24 @@ async function agentReply(userMessage) {
   });
 
   const reader = response.body.getReader();
+  const decoder = new TextDecoder();
   let agentMsg = '';
-  messages.push({ role: 'agent', content: '', time: new Date() });
+
+  // Keep showing "Thinking..." bubble while streaming; don't push final message yet
   render();
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    agentMsg += new TextDecoder().decode(value);
-    messages[messages.length - 1].content = agentMsg;
-    render();
+    agentMsg += decoder.decode(value, { stream: true });
   }
+  // Flush remaining bytes
+  agentMsg += decoder.decode();
+  console.debug('Full agent message received:', agentMsg);
 
+  // Replace thinking indicator with final agent message
   agentThinking = false;
+  messages.push({ role: 'agent', content: agentMsg, time: new Date() });
   render();
 }
 
