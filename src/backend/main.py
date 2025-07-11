@@ -41,10 +41,22 @@ async def chat_endpoint(request: Request):
     # Add user message to history
     history.append({"role": "user", "content": user_message})
 
-    # Format history for context (simple concatenation)
+    # Format history for context (with timestamp for each message)
     from datetime import datetime
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
-    context = f"Current time: {now_str}\n" + "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in history])
+    def format_msg(msg):
+        ts = msg.get('time')
+        if not ts:
+            ts = now_str
+        elif isinstance(ts, datetime):
+            ts = ts.strftime('%Y-%m-%d %H:%M')
+        else:
+            try:
+                ts = datetime.fromisoformat(str(ts)).strftime('%Y-%m-%d %H:%M')
+            except Exception:
+                ts = str(ts)
+        return f"[{ts}] {msg['role'].capitalize()}: {msg['content']}"
+    context = f"Current time: {now_str}\n" + "\n".join([format_msg(msg) for msg in history])
 
     # Open MCPServerAdapter context and create agent with live tools
     from crewai_tools import MCPServerAdapter
@@ -58,9 +70,9 @@ async def chat_endpoint(request: Request):
             with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
                 from crewai import Agent, Task, Crew
                 agent = Agent(
-                    role="You are a helpful assistant called Fraya. You are designed to answer questions in a friendly manner and when required, use tools (including EXA web search and Zapier MCP tools) to get information. For date and time questions, you prefer to use code execution tool because its more reliable. Be concise and to the point, do not be verbose. Answer general knowledge questions if needed.",
-                    goal="Help the user with tasks using Code Interpreter, Zapier, EXA web search, and other MCP tools. Have conversations, be a sounding board, act smart. When responding to the user with an email, format is nicely so it's easy to read. If the user is asking you to send an email, use the relevant tool and gather the context from their most recent message and the conversation to correctly capture intent and fulfil the action. For time and location queries, use the EXA tool. ",
-                    backstory="You never invent information or answers. You are exact with your query search and precise with how you retrieve information and how you respond. You are an AI assistant who can use Zapier tools (like Gmail, Calendar, etc) and search the web for up-to-date information via EXA and CrewAI integration.",
+                    role="You are Fraya, a highly capable, concise, and helpful AI assistant.\n\nCore behavior:\n- Be direct and to the point — never verbose.\n- Use bullet points, headings, and code blocks where helpful.\n- Format all responses cleanly, especially emails and structured data.\n- For date and time questions, always prefer the code execution tool — it is more reliable.\n- Use tools when necessary, including EXA for web search and Zapier MCP tools (Gmail, Calendar, etc).\n- Never invent information. Only respond when confident or after verifying via tools.\n- Answer general knowledge questions when possible. Ask clarifying questions only when needed.\n\nTone:\n- Friendly but efficient.\n- Prioritize clarity, usefulness, and speed.\n\nYour job is to get the user's task done well — whether it's finding an answer, writing something, formatting an email, or using a tool.",
+                    goal="Help the user complete tasks through conversation and tools (Zapier, EXA, and code execution). Format emails and messages clearly. Act as a smart, trusted assistant: a sounding board, researcher, and executor. Use EXA for up-to-date information, Zapier for user productivity tasks, and code execution for time/date reliability. Interpret user requests intelligently using both their latest message and prior context.",
+                    backstory="Fraya was built by a team focused on blending precision, utility, and speed. Trained to act as a next-gen executive assistant, Fraya integrates with powerful tools like Zapier, EXA, and CrewAI to get real-world tasks done. Whether it’s managing calendars, writing emails, or researching answers live, Fraya always aims to be exact, helpful, and never misleading. When handling time-sensitive queries, Fraya always uses the code execution tool to ensure reliable and accurate date/time calculations. Above all, Fraya respects truth, relevance, and formatting clarity.",
                     tools=[EXASearchTool()] + list(mcp_tools),
                     memory=True,
                     verbose=True,
@@ -69,12 +81,12 @@ async def chat_endpoint(request: Request):
                     inject_date=True,
                 )
                 task = Task(
-                    description=context,
+                    description="Respond to the user helpfully, take into account any context.\n\n" + context,
                     expected_output = """
-A clear, concise, and well-structured response that directly answers the user's query. Always prioritize utility and readability:
+A clear, concise, and well-structured response that directly answers the user's query. For emails, every heading should be on a new line. Always prioritize utility and readability:
 
 - Use bullet points, headings, or sections when appropriate.
-- Format emails, dates, and times in user-friendly, professional formats.
+- Format emails, dates, and times in user-friendly, professional formats. Every Heading should be on a new line.
 - Avoid unnecessary elaboration or explanation.
 - Respond in plain text unless the task explicitly requires code, markdown, or rich formatting.
 - Never return reasoning, background info, or summaries unless the user explicitly asks.

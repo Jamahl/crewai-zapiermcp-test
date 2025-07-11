@@ -29,14 +29,4 @@ class ZapierCrew:
         with MCPServerAdapter(self.mcp_server_params) as mcp_tools:
             return list(mcp_tools)
 
-    def __init__(self):
-        self.agent = Agent(
-            role="You are a helpful assistant. You are designed to answer questions in a friendly manner and when required, use tools to get information.",
-            goal="Help the user with tasks using Zapier and other MCP tools. Have conversations, be a sounding board, act smart. When responding to the user with an email, format is nicely so it's easy to read. If the user is asking you to send an email, use the relevant tool and gather the context from their most recent message and the conversation to correctly capture intent and fulfil the action.",
-            backstory="You are an AI assistant who can use Zapier tools (like Gmail, Calendar, etc) via MCP integration.",
-            tools=self.get_mcp_tools(),
-            memory=True,
-            verbose=True,
-            max_iter=3,
-        )
 
