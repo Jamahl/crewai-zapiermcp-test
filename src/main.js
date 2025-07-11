@@ -1,4 +1,22 @@
 import './style.css'
+import { marked } from 'marked';
+
+// Custom markdown renderer for agent output with DaisyUI mockup-code for code blocks
+function renderAgentMarkdown(md) {
+  const renderer = new marked.Renderer();
+  renderer.code = (code, infostring) => {
+    // Use DaisyUI mockup-code for code blocks
+    return `<pre class="mockup-code text-xs p-2"><code>${escapeHTML(code)}</code></pre>`;
+  };
+  return marked.parse(md, { renderer });
+}
+
+// Escape HTML utility for user messages
+function escapeHTML(str) {
+  str = String(str || "");
+  return str.replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','\"':'&quot;'}[tag]));
+}
+
 
 // In-memory chat state (resets on reload)
 let messages = [];
@@ -24,7 +42,7 @@ function render() {
               </div>
               <div>
                 <div class="chat-bubble ${m.role === 'user' ? 'bg-primary text-primary-content' : 'bg-secondary text-secondary-content'} shadow-lg px-5 py-3">
-                  ${m.content}
+                  ${m.role === 'agent' ? renderAgentMarkdown(m.content) : escapeHTML(m.content)}
                 </div>
                 <div class="text-xs text-base-content/60 mt-1 text-right">${formatTime(m.time)}</div>
               </div>
