@@ -5,8 +5,18 @@ import { marked } from 'marked';
 function renderAgentMarkdown(md) {
   const renderer = new marked.Renderer();
   renderer.code = (code, infostring) => {
-    // Use DaisyUI mockup-code for code blocks
-    return `<pre class="mockup-code text-xs p-2"><code>${escapeHTML(code)}</code></pre>`;
+    // Improved code block: scroll, monospace, copy button
+    const escaped = escapeHTML(code);
+    const id = 'code-' + Math.random().toString(36).slice(2);
+    return `
+      <div class="relative group">
+        <pre class="mockup-code text-xs p-2 overflow-x-auto font-mono bg-base-300/80 rounded-xl border border-base-200"><code id="${id}">${escaped}</code></pre>
+        <button class="absolute top-2 right-2 btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition" onclick="navigator.clipboard.writeText(document.getElementById('${id}').innerText)">Copy</button>
+      </div>
+    `;
+  };
+  renderer.link = (href, title, text) => {
+    return `<a href="${escapeHTML(href)}" class="text-primary underline hover:text-secondary" target="_blank" rel="noopener">${escapeHTML(text)}</a>`;
   };
   return marked.parse(md, { renderer });
 }
@@ -32,19 +42,20 @@ function render() {
   app.innerHTML = `
     <div class="flex flex-col items-center min-h-screen bg-base-100">
       <div class="w-full max-w-2xl flex flex-col flex-1 h-[80vh] my-8 rounded-xl shadow-xl bg-base-200 border border-base-300">
-        <div id="chat-area" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <div id="chat-area" class="flex-1 overflow-y-auto p-6 space-y-6">
           ${messages.map(m => `
-            <div class="chat ${m.role === 'user' ? 'chat-end' : 'chat-start'} items-end">
+            <div class="chat ${m.role === 'user' ? 'chat-end' : 'chat-start'} items-end relative">
               <div class="avatar ${m.role === 'user' ? 'hidden sm:inline-block' : 'inline-block'}">
                 <div class="w-8 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
                   <img src="${m.role === 'user' ? 'https://i.ibb.co/rKStJNDy/jamahlpic.jpg' : 'https://api.dicebear.com/7.x/bottts/svg?seed=agent'}" alt="${m.role}" />
                 </div>
               </div>
-              <div>
-                <div class="chat-bubble ${m.role === 'user' ? 'bg-primary text-primary-content' : 'bg-secondary text-secondary-content'} shadow-lg px-5 py-3">
+              <div class="relative">
+                <div class="chat-bubble ${m.role === 'user' ? 'bg-primary text-primary-content' : 'bg-secondary text-secondary-content'} shadow-xl px-6 py-4 rounded-2xl rounded-br-md rounded-bl-md">
                   ${m.role === 'agent' ? renderAgentMarkdown(m.content) : escapeHTML(m.content)}
                 </div>
-                <div class="text-xs text-base-content/60 mt-1 text-right">${formatTime(m.time)}</div>
+                <div class="absolute ${m.role === 'user' ? 'right-2' : 'left-2'} -bottom-2 w-0 h-0 border-t-8 border-t-transparent ${m.role === 'user' ? 'border-l-8 border-l-primary' : 'border-r-8 border-r-secondary'}"></div>
+                <div class="text-xs text-base-content/60 mt-2 text-right">${formatTime(m.time)}</div>
               </div>
             </div>
           `).join('')}
