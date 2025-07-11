@@ -82,24 +82,39 @@ function render() {
   }
 }
 
-// Placeholder for streaming agent response
+// Real streaming agent response from FastAPI backend
+// Session ID for persistent chat context
+if (!localStorage.getItem('session_id')) {
+  localStorage.setItem('session_id', crypto.randomUUID());
+}
+const session_id = localStorage.getItem('session_id');
+
 async function agentReply(userMessage) {
   agentThinking = true;
   render();
 
-  // Simulate thinking delay
-  await new Promise(res => setTimeout(res, 600));
-  agentThinking = false;
+  const response = await fetch('http://localhost:8001/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: userMessage, session_id })
+  });
+
+  const reader = response.body.getReader();
+  let agentMsg = '';
   messages.push({ role: 'agent', content: '', time: new Date() });
   render();
 
-  // Simulate streaming (replace with real backend call)
-  const reply = 'This is a simulated agent response. In the real app, this would stream from the backend.';
-  for (let i = 0; i < reply.length; i++) {
-    messages[messages.length - 1].content += reply[i];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    agentMsg += new TextDecoder().decode(value);
+    messages[messages.length - 1].content = agentMsg;
     render();
-    await new Promise(res => setTimeout(res, 15));
   }
+
+  agentThinking = false;
+  render();
 }
+
 
 render();

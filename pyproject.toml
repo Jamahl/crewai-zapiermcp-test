@@ -1,0 +1,15 @@
+[project]
+name = "crewai_zapiermcp_backend"
+version = "0.1.0"
+description = "CrewAI backend with Zapier MCP integration for chat UI"
+requires-python = ">=3.10,<3.14"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+fastapi = "^0.111.0"
+uvicorn = "^0.29.0"
+crewai = "*"
+crewai-tools = {extras = ["mcp"], version = "*"}
+fastmcp = "*"
+
+[tool.poetry.dev-dependencies]
