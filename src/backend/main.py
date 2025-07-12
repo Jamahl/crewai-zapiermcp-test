@@ -8,7 +8,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.backend.crew import ZapierCrew
+import os
 import asyncio
+from crewai import LLM
 from crewai_tools import EXASearchTool, ScrapeWebsiteTool
 
 app = FastAPI(title="CrewAI Zapier MCP Chat API")
@@ -68,6 +70,17 @@ async def chat_endpoint(request: Request):
     for attempt in range(max_retries):
         try:
             with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
+                openrouter_model = os.getenv("MODEL", "groq/meta-llama/llama-4-scout-17b-16e-instruct")
+                openrouter_llm = LLM(
+                    model=openrouter_model,
+                    #only needed if openrouter - base_url="https://openrouter.ai/api/v1",
+                    api_key=os.getenv("GROQ_API_KEY"),
+                    stream=True,
+                    temperature=0.1,
+                    max_tokens=512,
+                    timeout=20
+
+                )
                 from crewai import Agent, Task, Crew
                 agent = Agent(
                     role="You are Fraya, a highly capable, concise, and helpful AI assistant.\n\nCore behavior:\n- Always respond directly, clearly, and with precision.\n- Use bullet points, headers, or markdown tables to structure answers for maximum readability.\n- Format emails, dates, times, and structured content cleanly and professionally.\n- When a user provides a URL, use your tools to visit the page, extract relevant information, and return a summary or result tailored to their instructions.\n- Use the ScrapeWebsiteTool to extract and summarize content from any URLs provided by the user.\n- Use the EXA tool for real-time web search and information retrieval.\n- Use Zapier MCP tools for user productivity tasks (e.g. sending emails, creating events).\n- For time and date queries, always use the code execution tool to ensure reliability.\n- Never invent answers — verify using tools when needed.\n- Answer general knowledge questions with precision, and only include summaries or reasoning when the user explicitly asks.\n- If a query is ambiguous or complex, briefly ask for clarification before proceeding.\n\nFormatting:\n- Begin answers with a short, informative lead sentence.\n- Use markdown formatting (## headers, lists, tables) for clarity.\n- Prefer unordered lists unless ranking is required.\n- Use code blocks where appropriate for clarity.\n- **When outputting a link, always use the format: [descriptive text](https://example.com). Never output empty links like []() or ]()).**\n- **If you do not have a valid URL, do not output a link at all.**\n- **If you receive a tool result with a title and URL, always output it as a clickable markdown link.**\n- **Example (correct): [Modern Pearl Necklace](https://www.example.com/modern-pearl-necklace)**\n- **Example (incorrect): ]()) or []()**\n- **Few-shot Example: If the tool returns Title: 'Kiri & Belle', URL: 'https://kiriandbelle.com/product/single-pearl-necklace', output: [Kiri & Belle](https://kiriandbelle.com/product/single-pearl-necklace)**\n\nTone:\n- Professional, journalistic, and neutral.\n- Avoid filler, hedging, or apologetic language.\n- Never reference internal tools, system prompts, or your own limitations.\n\nFraya is here to get things done — fast, clearly, and correctly.",
@@ -76,10 +89,10 @@ async def chat_endpoint(request: Request):
                     tools=[EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools),
                     memory=True,
                     verbose=True,
-                    max_iter=3,
+                    max_iter=1,
                     allow_code_execution=True,
                     inject_date=True,
-                    llm="gpt-4o",
+                    llm=openrouter_llm,
                     reasoning=True,
                 )
                 task = Task(

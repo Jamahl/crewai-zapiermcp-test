@@ -4,16 +4,29 @@ import { marked } from 'marked';
 // Custom markdown renderer for agent output with DaisyUI mockup-code for code blocks
 function renderAgentMarkdown(md) {
   const renderer = new marked.Renderer();
-  renderer.code = (code, infostring) => {
-    // Improved code block: scroll, monospace, copy button
-    const escaped = escapeHTML(code);
+  renderer.code = (code, infostring = '') => {
+    if (typeof code === 'object' && code !== null) {
+      // New marked versions pass an object { text, lang } as first arg
+      if ('text' in code) {
+        infostring = code.lang || infostring;
+        code = code.text;
+      } else {
+        code = JSON.stringify(code);
+      }
+    }
+    // DaisyUI mockup-code expects each line in its own <pre> with data-prefix,
+    // wrapped by a container having the `mockup-code` class.
+    // We also attach an id for the copy-to-clipboard button.
     const id = 'code-' + Math.random().toString(36).slice(2);
+    const escaped = escapeHTML(String(code));
+
     return `
-      <div class="relative group">
-        <pre class="mockup-code text-xs p-2 overflow-x-auto font-mono bg-base-300/80 rounded-xl border border-base-200"><code id="${id}">${escaped}</code></pre>
-        <button class="absolute top-2 right-2 btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition" onclick="navigator.clipboard.writeText(document.getElementById('${id}').innerText)">Copy</button>
-      </div>
-    `;
+      <div class="relative">
+        <div class="mockup-code w-full text-xs font-mono bg-base-300/80 rounded-xl border border-base-200" id="${id}">
+          <pre data-prefix="~"><code class="text-black">${escaped}</code></pre>
+        </div>
+        <button class="absolute top-2 right-2 btn btn-xs btn-ghost opacity-0 hover:opacity-100 transition" onclick="navigator.clipboard.writeText(document.getElementById('${id}').innerText)">Copy</button>
+      </div>`;
   };
   const rawHtml = marked.parse(md, { renderer });
   // Wrap every anchor in a DaisyUI badge
@@ -22,10 +35,20 @@ function renderAgentMarkdown(md) {
   );
 }
 
-// Escape HTML utility for user messages
+// Escape HTML utility
 function escapeHTML(str) {
   str = String(str || "");
   return str.replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','\"':'&quot;'}[tag]));
+}
+
+// Render user markdown, supporting ```code``` blocks while still escaping
+function renderUserMarkdown(text) {
+  const escaped = escapeHTML(text);
+  // Convert triple-backtick fenced blocks into DaisyUI mockup-code blocks
+  return escaped.replace(/```([\s\S]*?)```/g, (_m, code) => {
+    const id = 'user-code-' + Math.random().toString(36).slice(2);
+    return `\n<div class="relative">\n  <div class="mockup-code w-full text-xs font-mono bg-base-300/80 rounded-xl border border-base-200" id="${id}">\n    <pre data-prefix="~"><code class="text-black">${code.trim()}</code></pre>\n  </div>\n  <button class="absolute top-2 right-2 btn btn-xs btn-ghost opacity-0 hover:opacity-100 transition" onclick="navigator.clipboard.writeText(document.getElementById('${id}').innerText)">Copy</button>\n</div>\n`; 
+  });
 }
 
 
@@ -53,7 +76,7 @@ function render() {
               </div>
               <div class="relative">
                 <div class="chat-bubble ${m.role === 'user' ? 'bg-primary text-primary-content' : 'bg-secondary text-secondary-content'} shadow-xl px-6 py-4 rounded-2xl rounded-br-md rounded-bl-md">
-                  ${m.role === 'agent' ? renderAgentMarkdown(m.content) : escapeHTML(m.content)}
+                  ${m.role === 'agent' ? renderAgentMarkdown(m.content) : renderUserMarkdown(m.content)}
                 </div>
                 <div class="absolute ${m.role === 'user' ? 'right-2' : 'left-2'} -bottom-2 w-0 h-0 border-t-8 border-t-transparent ${m.role === 'user' ? 'border-l-8 border-l-primary' : 'border-r-8 border-r-secondary'}"></div>
                 <div class="text-xs text-base-content/60 mt-2 text-right">${formatTime(m.time)}</div>
