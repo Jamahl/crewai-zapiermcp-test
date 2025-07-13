@@ -12,6 +12,17 @@ import os
 import asyncio
 from crewai import LLM
 from crewai_tools import EXASearchTool, ScrapeWebsiteTool
+from dotenv import load_dotenv
+import agentops
+
+load_dotenv()
+
+AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") 
+agentops.init(
+    api_key=AGENTOPS_API_KEY,
+    default_tags=['crewai']
+)
+
 
 app = FastAPI(title="CrewAI Zapier MCP Chat API")
 app.add_middleware(
@@ -70,15 +81,16 @@ async def chat_endpoint(request: Request):
     for attempt in range(max_retries):
         try:
             with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
-                openrouter_model = os.getenv("MODEL", "groq/meta-llama/llama-4-scout-17b-16e-instruct")
-                openrouter_llm = LLM(
-                    model=openrouter_model,
+                model = os.getenv("MODEL", "openai/gpt-4.1-mini")
+                #groq/meta-llama/llama-4-scout-17b-16e-instruct >> free model using GROQ
+                crew_llm = LLM(
+                    model=model,
                     #only needed if openrouter - base_url="https://openrouter.ai/api/v1",
-                    api_key=os.getenv("GROQ_API_KEY"),
+                    api_key=os.getenv("OPENAI_API_KEY"),
                     stream=True,
                     temperature=0.1,
                     max_tokens=512,
-                    timeout=20
+                    timeout=20,
 
                 )
                 from crewai import Agent, Task, Crew
@@ -92,7 +104,7 @@ async def chat_endpoint(request: Request):
                     max_iter=1,
                     allow_code_execution=True,
                     inject_date=True,
-                    llm=openrouter_llm,
+                    llm=model,
                     reasoning=True,
                 )
                 task = Task(
