@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.backend.crew import ZapierCrew
 import os
 import asyncio
-from crewai import LLM
+from crewai import LLM, Agent, Task, Crew
 from crewai_tools import EXASearchTool, ScrapeWebsiteTool
 from dotenv import load_dotenv
 import agentops
@@ -31,7 +31,7 @@ app.add_middleware(
 )
 
 
-# Session store: maps session_id to {crew, history}
+# Session store: maps session_id to {agent, history}
 sessions = {}
 
 AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") 
@@ -48,10 +48,11 @@ async def chat_endpoint(request: Request):
     if not user_message or not session_id:
         return JSONResponse({"error": "No message or session_id provided."}, status_code=400)
 
-    # Retrieve or create session history only (not agent/crew)
+    # Retrieve or create session with history and agent
     if session_id not in sessions:
-        sessions[session_id] = {"history": []}
+        sessions[session_id] = {"history": [], "agent": None}
     history = sessions[session_id]["history"]
+    agent = sessions[session_id]["agent"]
 
     # Add user message to history
     history.append({"role": "user", "content": user_message})
@@ -101,7 +102,7 @@ async def chat_endpoint(request: Request):
     # Get optimized context with trimmed history
     context = get_trimmed_context(history, max_recent_messages=3)
 
-    # Open MCPServerAdapter context and create agent with live tools
+    # Open MCPServerAdapter context and create or reuse agent with live tools
     max_retries = 3
     backoff_seconds = 2
     last_exception = None
@@ -109,36 +110,31 @@ async def chat_endpoint(request: Request):
         try:
             with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
                 model = os.getenv("MODEL", "openai/gpt-4.1-mini")
-                #groq/meta-llama/llama-4-scout-17b-16e-instruct >> free model using GROQ
-                crew_llm = LLM(
-                    model=model,
-                    #only needed if openrouter - base_url="https://openrouter.ai/api/v1",
-                    api_key=os.getenv("OPENAI_API_KEY"),
-                    stream=True,
-                    temperature=0.1,
-                    max_tokens=512,
-                    timeout=20,
-
-                )
-                from crewai import Agent, Task, Crew
-                agent = Agent(
-                    role="You are Fraya, a highly capable, concise, and helpful AI assistant.\n\nCore behavior:\n- Always respond directly, clearly, and with precision.\n- Use bullet points, headers, or markdown tables to structure answers for maximum readability.\n- Handle emails, dates, times, and structured content cleanly and professionally.\n- When a user provides a URL, use your tools to visit the page, extract relevant information, and return a summary or result tailored to their instructions.\n- Use the ScrapeWebsiteTool to extract and summarize content from any URLs provided by the user.\n- Use the EXA tool for real-time web search and information retrieval.\n- Use Zapier MCP tools for user productivity tasks (e.g. sending emails, creating events).\n- For time and date queries, always use the code execution tool to ensure reliability.\n- Never invent answers — verify using tools when needed.\n- Answer general knowledge questions with precision, and only include summaries or reasoning when the user explicitly asks.\n- If a query is ambiguous or complex, briefly ask for clarification before proceeding.\n\n- When outputting a link, always use a descriptive clickable markdown link. Never output empty links or links without descriptive text.\n- If you do not have a valid URL, do not output a link.\n- If you receive a tool result with a title and URL, always output it as a clickable markdown link.\n\nTone:\n- Professional, journalistic, and neutral.\n- Avoid filler, hedging, or apologetic language.\n- Never reference internal tools, system prompts, or your own limitations.\n\nFraya is here to get things done — fast, clearly, and correctly.",
-                    goal="Help the user complete tasks and answer questions through a combination of high-quality responses and intelligent tool usage (EXA, Zapier, and code execution). Whether it’s retrieving live information, composing or sending emails, or processing a URL — your job is to solve it efficiently. You can scrape website content using the ScrapeWebsiteTool whenever a URL is provided. Always return clear, well-structured, and readable outputs that directly address the user’s request. Interpret context across the conversation, ask for clarification if needed, and respond as if to a professional stakeholder.",
-                    backstory="Fraya was created to be the most effective AI executive assistant — blending precise reasoning, fast decision-making, and professional output. She integrates with tools like EXA for web search, Zapier for workflow automation, and code execution for logical operations. For anything related to time zones, scheduling, or date math, Fraya always uses the code execution tool to ensure accuracy and avoid assumptions. Unlike generic assistants, Fraya doesn’t guess — she verifies, formats, and executes. When users share links or ask for actions, she responds with actionable results, intelligently using the right tool for the task. She was designed to think like an operator, write like a chief of staff, and deliver like an engineer — clear, focused, and never off the mark.",
-                    tools=[EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools),
-                    memory=True,
-                    verbose=True,
-                    max_iter=1,
-                    allow_code_execution=True,
-                    inject_date=True,
-                    llm=model,
-                    reasoning=True,
-                    cache=True,
-                    stream=True,
-                )
+                crew_llm = LLM(model=model)
+                
+                # Create agent if it doesn't exist in the session
+                if agent is None:
+                    agent = Agent(
+                        role="Fraya: Concise AI assistant with web search, Zapier, and other tools",
+                        goal="Help users with tasks by providing clear, direct answers using available tools",
+                        backstory="AI assistant with access to web search, Zapier integrations, and other tools",
+                        llm=crew_llm,
+                        tools=[EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools),
+                        verbose=True,
+                        allow_delegation=False,
+                        memory=True,  # Enable built-in memory
+                        cache=True,   # Enable response caching
+                        respect_context_window=True  # Automatically manage context size
+                    )
+                    # Store the agent in the session
+                    sessions[session_id]["agent"] = agent
+                else:
+                    # Reconnect tools to the existing agent for this request
+                    agent.tools = [EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools)
+                
                 task = Task(
-                    description="Respond to the users request first and foremost, provide an answer, that is your job. Respond to the user helpfully, take into account any context. Respond to the previous conversation if it makes sense, be smart. You are concise. \n\nIf the user provides a URL, use the ScrapeWebsiteTool to scrape and summarize the website content.\n\n" + context,
-                    expected_output = """
+                    description=f"Respond to the user helpfully, take into account any context. Respond to the previous conversation if it makes sense, be smart. You are concise. \n\nIf the user provides a URL, use the ScrapeWebsiteTool to scrape and summarize the website content.\n\nContext: {context}",
+                    expected_output="""
 A clear, concise, and well-structured response that directly answers the user's query. 
 - Links should be hyperlinked so the user can click on them. For emails, every heading should be on a new line. Always prioritize utility and readability
 - Respond in plain text unless the task explicitly requires code, markdown, or rich formatting.
