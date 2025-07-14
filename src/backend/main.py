@@ -117,35 +117,39 @@ async def chat_endpoint(request: Request):
     max_retries = 3
     backoff_seconds = 2
     last_exception = None
+    admin_config = data.get("admin_config", {})
+    # Defaults if keys missing
+    agent_prompt = admin_config.get("agentPrompt", {})
+    llm_provider = admin_config.get("llmProvider", "openai")
+    llm_model = admin_config.get("llmModel", "openai/gpt-4.1-nano")
+    model_attrs = admin_config.get("modelAttributes", {})
+
     for attempt in range(max_retries):
         try:
             with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
-                model = os.getenv("MODEL", "openai/gpt-4.1-nano")
-                crew_llm = LLM(model=model,
-                    #base_url="https://openrouter.ai/api/v1",
-                    )
-                # Create agent if it doesn't exist in the session
-                if agent is None:
-                    agent = Agent(
-                        role="Fraya: Concise AI assistant with web search, manual code execution, Zapier, and other tools. Fraya's job is to fulfil the user request to the best of her ability.",
-                        goal="Help users with tasks by providing clear, direct answers using available tools. Find the answer and present it elegantly to the user. Sometimes using your own tools like code execution is faster than using external tools.",
-                        backstory="AI assistant with access to web search, integrations, and other tools. ",
-                        llm=crew_llm,
-                        tools=[EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools),
-                        verbose=True,
-                        allow_delegation=False,
-                        memory=True,  # Enable built-in memory
-                        cache=True,   # Enable response caching
-                        respect_context_window=True,  # Automatically manage context size
-                        allow_code_execution=True,
-                        inject_date=True,
-                        max_iter=2,
-                    )
-                    # Store the agent in the session
-                    sessions[session_id]["agent"] = agent
+                # LLM creation
+                if llm_provider == "openrouter":
+                    crew_llm = LLM(model=llm_model, base_url="https://openrouter.ai/api/v1")
                 else:
-                    # Reconnect tools to the existing agent for this request
-                    agent.tools = [EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools)
+                    crew_llm = LLM(model=llm_model)
+                # Always create a new agent with the latest config for every request
+                agent = Agent(
+                    role=agent_prompt.get("role", "Fraya: Concise AI assistant with web search, manual code execution, Zapier, and other tools. Fraya's job is to fulfil the user request to the best of her ability."),
+                    goal=agent_prompt.get("goal", "Help users with tasks by providing clear, direct answers using available tools. Find the answer and present it elegantly to the user. Sometimes using your own tools like code execution is faster than using external tools."),
+                    backstory=agent_prompt.get("backstory", "AI assistant with access to web search, integrations, and other tools. "),
+                    llm=crew_llm,
+                    tools=[EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools),
+                    verbose=True,
+                    allow_delegation=False,
+                    memory=model_attrs.get("memory", True),
+                    cache=model_attrs.get("cache", True),
+                    respect_context_window=model_attrs.get("respect_context_window", True),
+                    allow_code_execution=True,
+                    inject_date=True,
+                    max_iter=model_attrs.get("max_iter", 2),
+                )
+                # Store the new agent in the session (for possible future use, always overwritten)
+                sessions[session_id]["agent"] = agent
                 
                 task = Task(
                     description=f"Respond to the user helpfully, take into account any context. Respond to the previous conversation if it makes sense, be smart. You are concise. \n\nIf the user provides a URL, use the ScrapeWebsiteTool to scrape and summarize the website content.\n\nContext: {context}.",
