@@ -18,6 +18,11 @@ from crewai_tools import MCPServerAdapter
 from datetime import datetime
 from src.backend.crew import ZapierCrew
 import time
+from mem0 import MemoryClient
+
+# Initialize mem0 MemoryClient using API key from environment
+mem0_api_key = os.getenv("MEM0_API_KEY")
+mem0_client = MemoryClient()
 
 load_dotenv()
 
@@ -33,6 +38,12 @@ app.add_middleware(
 
 # Session store: maps session_id to {agent, history}
 sessions = {}
+
+# Function to store user preferences (conversation history) in mem0
+
+def store_user_preferences(user_id: str, conversation: list):
+    """Store user preferences from conversation history using mem0"""
+    mem0_client.add(conversation, user_id=user_id)
 
 AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") 
 agentops.init(
@@ -109,22 +120,26 @@ async def chat_endpoint(request: Request):
     for attempt in range(max_retries):
         try:
             with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
-                model = os.getenv("MODEL", "openai/gpt-4.1-mini")
-                crew_llm = LLM(model=model)
-                
+                model = os.getenv("MODEL", "openai/gpt-4.1-nano")
+                crew_llm = LLM(model=model,
+                    #base_url="https://openrouter.ai/api/v1",
+                    )
                 # Create agent if it doesn't exist in the session
                 if agent is None:
                     agent = Agent(
-                        role="Fraya: Concise AI assistant with web search, Zapier, and other tools",
-                        goal="Help users with tasks by providing clear, direct answers using available tools",
-                        backstory="AI assistant with access to web search, Zapier integrations, and other tools",
+                        role="Fraya: Concise AI assistant with web search, manual code execution, Zapier, and other tools. Fraya's job is to fulfil the user request to the best of her ability.",
+                        goal="Help users with tasks by providing clear, direct answers using available tools. Find the answer and present it elegantly to the user. Sometimes using your own tools like code execution is faster than using external tools.",
+                        backstory="AI assistant with access to web search, integrations, and other tools. ",
                         llm=crew_llm,
                         tools=[EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools),
                         verbose=True,
                         allow_delegation=False,
                         memory=True,  # Enable built-in memory
                         cache=True,   # Enable response caching
-                        respect_context_window=True  # Automatically manage context size
+                        respect_context_window=True,  # Automatically manage context size
+                        allow_code_execution=True,
+                        inject_date=True,
+                        max_iter=2,
                     )
                     # Store the agent in the session
                     sessions[session_id]["agent"] = agent
@@ -133,7 +148,7 @@ async def chat_endpoint(request: Request):
                     agent.tools = [EXASearchTool(), ScrapeWebsiteTool()] + list(mcp_tools)
                 
                 task = Task(
-                    description=f"Respond to the user helpfully, take into account any context. Respond to the previous conversation if it makes sense, be smart. You are concise. \n\nIf the user provides a URL, use the ScrapeWebsiteTool to scrape and summarize the website content.\n\nContext: {context}",
+                    description=f"Respond to the user helpfully, take into account any context. Respond to the previous conversation if it makes sense, be smart. You are concise. \n\nIf the user provides a URL, use the ScrapeWebsiteTool to scrape and summarize the website content.\n\nContext: {context}.",
                     expected_output="""
 A clear, concise, and well-structured response that directly answers the user's query. 
 - Links should be hyperlinked so the user can click on them. For emails, every heading should be on a new line. Always prioritize utility and readability
@@ -173,7 +188,16 @@ Never mix code and explanation in the same code block.
 """,
                     agent=agent
                 )
-                chat_crew = Crew(agents=[agent], tasks=[task], verbose=True)
+                chat_crew = Crew(
+                    agents=[agent],
+                    tasks=[task],
+                    verbose=True,
+                    memory=True,
+                    memory_config={
+                        "provider": "mem0",
+                        "config": {"user_id": session_id},
+                    }
+                )
                 result = chat_crew.kickoff()
 
                 # Use the agent's raw markdown output without modification so that the
