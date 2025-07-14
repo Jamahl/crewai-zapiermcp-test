@@ -71,77 +71,83 @@ function renderAdminPanel() {
   // Only show/edit the model name, not the prefix
   let modelPrefix = adminConfig.llmProvider === 'openrouter' ? 'openrouter/' : 'openai/';
   let strippedModel = adminConfig.llmModel.startsWith(modelPrefix) ? adminConfig.llmModel.slice(modelPrefix.length) : adminConfig.llmModel;
-  // Config summary for user safety
+  // Config summary for user safety (DaisyUI card, no blue background)
   const configSummary = `
-    <div class="alert alert-info shadow-sm mb-3 flex flex-col items-start text-xs" aria-live="polite">
-      <div class="font-bold text-base-content/80 mb-1">Current Config</div>
-      <div><span class="font-semibold">Provider:</span> ${adminConfig.llmProvider}</div>
-      <div><span class="font-semibold">Model:</span> ${adminConfig.llmModel}</div>
-      <div><span class="font-semibold">Role:</span> ${adminConfig.agentPrompt.role}</div>
-      <div><span class="font-semibold">Goal:</span> ${adminConfig.agentPrompt.goal}</div>
-      <div><span class="font-semibold">Backstory:</span> ${adminConfig.agentPrompt.backstory}</div>
-      <div><span class="font-semibold">Task Desc:</span> ${(adminConfig.taskDescription || '').slice(0, 50)}${(adminConfig.taskDescription||'').length>50?'...':''}</div>
-      <div><span class="font-semibold">Expected Output:</span> ${(adminConfig.expectedOutput || '').slice(0, 50)}${(adminConfig.expectedOutput||'').length>50?'...':''}</div>
-      <div><span class="font-semibold">Attributes:</span> memory: ${adminConfig.modelAttributes.memory ? 'on' : 'off'}, cache: ${adminConfig.modelAttributes.cache ? 'on' : 'off'}, max_iter: ${adminConfig.modelAttributes.max_iter}, respect_context_window: ${adminConfig.modelAttributes.respect_context_window ? 'on' : 'off'}</div>
+    <div class="card shadow-sm border border-base-300 mb-4 w-full" aria-live="polite">
+      <div class="card-body p-4 flex flex-col gap-2 text-xs">
+        <div class="font-bold text-base-content/80 mb-1 text-sm">Current Config</div>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2">
+          <div><span class="font-semibold">Provider:</span> ${adminConfig.llmProvider}</div>
+          <div><span class="font-semibold">Model:</span> ${adminConfig.llmModel}</div>
+          <div><span class="font-semibold">Role:</span> ${adminConfig.agentPrompt.role}</div>
+          <div><span class="font-semibold">Goal:</span> ${adminConfig.agentPrompt.goal}</div>
+          <div><span class="font-semibold">Backstory:</span> ${adminConfig.agentPrompt.backstory}</div>
+          <div><span class="font-semibold">Task Desc:</span> ${(adminConfig.taskDescription || '').slice(0, 50)}${(adminConfig.taskDescription||'').length>50?'...':''}</div>
+          <div><span class="font-semibold">Expected Output:</span> ${(adminConfig.expectedOutput || '').slice(0, 50)}${(adminConfig.expectedOutput||'').length>50?'...':''}</div>
+          <div class="col-span-2"><span class="font-semibold">Attributes:</span> memory: ${adminConfig.modelAttributes.memory ? 'on' : 'off'}, cache: ${adminConfig.modelAttributes.cache ? 'on' : 'off'}, max_iter: ${adminConfig.modelAttributes.max_iter}, respect_context_window: ${adminConfig.modelAttributes.respect_context_window ? 'on' : 'off'}</div>
+        </div>
+      </div>
     </div>
   `;
   return `
-    <div class="dropdown dropdown-bottom mb-4 w-full flex justify-end">
+    <div class="dropdown dropdown-bottom mb-4 w-full flex justify-center">
       <label tabindex="0" class="btn btn-sm btn-outline btn-primary rounded-xl" aria-label="Admin Panel" aria-haspopup="true">Admin Panel ⚙️</label>
-      <div tabindex="0" class="dropdown-content z-[1] card card-compact p-4 shadow-lg bg-base-200 border border-base-300 rounded-xl w-96">
+      <div tabindex="0" class="dropdown-content z-[1] card card-compact p-6 shadow-lg bg-base-200 border border-base-300 rounded-xl w-[50vw] min-w-[600px] max-w-3xl">
         ${configSummary}
-        <form id="admin-config-form" class="flex flex-col gap-3">
-          <div class="font-bold text-lg mb-1">Agent Prompt</div>
-          <label for="admin-role" class="label label-text font-semibold">Role</label>
-          <input class="input input-bordered input-sm" type="text" id="admin-role" placeholder="Role" value="${adminConfig.agentPrompt.role}" aria-label="Role" tabindex="0" />
-          <label for="admin-goal" class="label label-text font-semibold">Goal</label>
-          <input class="input input-bordered input-sm" type="text" id="admin-goal" placeholder="Goal" value="${adminConfig.agentPrompt.goal}" aria-label="Goal" tabindex="0" />
-          <label for="admin-backstory" class="label label-text font-semibold">Backstory</label>
-          <textarea class="textarea textarea-bordered textarea-sm" id="admin-backstory" placeholder="Backstory" aria-label="Backstory" tabindex="0">${adminConfig.agentPrompt.backstory}</textarea>
-          <div class="divider my-1"></div>
-          <div class="font-bold text-lg mb-1">LLM Provider & Model</div>
-          <select class="select select-bordered select-sm" id="admin-llm-provider" aria-label="LLM Provider" tabindex="0">
-            ${providerOptions}
-          </select>
-          <div class="flex items-center gap-2 mt-1">
-            <span class="text-xs text-base-content/60">${modelPrefix}</span>
-            <input class="input input-bordered input-sm flex-1" type="text" id="admin-llm-model" placeholder="Model name (e.g. gpt-4.1-nano or mistralai/mistral-small-3.2-24b-instruct)" value="${strippedModel}" aria-label="LLM Model" tabindex="0" />
+        <form id="admin-config-form" class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+          <div class="flex flex-col gap-3">
+            <div class="font-bold text-lg mb-1">Agent Prompt</div>
+            <label for="admin-role" class="label label-text font-semibold">Role</label>
+            <input class="input input-bordered input-sm" type="text" id="admin-role" placeholder="Role" value="${adminConfig.agentPrompt.role}" aria-label="Role" tabindex="0" />
+            <label for="admin-goal" class="label label-text font-semibold">Goal</label>
+            <input class="input input-bordered input-sm" type="text" id="admin-goal" placeholder="Goal" value="${adminConfig.agentPrompt.goal}" aria-label="Goal" tabindex="0" />
+            <label for="admin-backstory" class="label label-text font-semibold">Backstory</label>
+            <textarea class="textarea textarea-bordered textarea-sm" id="admin-backstory" placeholder="Backstory" aria-label="Backstory" tabindex="0">${adminConfig.agentPrompt.backstory}</textarea>
           </div>
-          <div class="divider my-1"></div>
-          <div class="font-bold text-lg mb-1">Model Attributes</div>
-          <div class="form-control flex flex-row gap-2 items-center">
-            <label class="label cursor-pointer gap-2">
-              <span class="label-text">Memory</span>
-              <input type="checkbox" id="admin-memory" class="toggle toggle-primary" ${adminConfig.modelAttributes.memory ? 'checked' : ''} tabindex="0" aria-label="Memory" />
-            </label>
-            <label class="label cursor-pointer gap-2">
-              <span class="label-text">Cache</span>
-              <input type="checkbox" id="admin-cache" class="toggle toggle-primary" ${adminConfig.modelAttributes.cache ? 'checked' : ''} tabindex="0" aria-label="Cache" />
-            </label>
+          <div class="flex flex-col gap-3">
+            <div class="font-bold text-lg mb-1">LLM Provider & Model</div>
+            <select class="select select-bordered select-sm" id="admin-llm-provider" aria-label="LLM Provider" tabindex="0">
+              ${providerOptions}
+            </select>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs text-base-content/60">${modelPrefix}</span>
+              <input class="input input-bordered input-sm flex-1" type="text" id="admin-llm-model" placeholder="Model name (e.g. gpt-4.1-nano or mistralai/mistral-small-3.2-24b-instruct)" value="${strippedModel}" aria-label="LLM Model" tabindex="0" />
+            </div>
+            <div class="font-bold text-lg mb-1 mt-2">Model Attributes</div>
+            <div class="form-control flex flex-row gap-2 items-center">
+              <label class="label cursor-pointer gap-2">
+                <span class="label-text">Memory</span>
+                <input type="checkbox" id="admin-memory" class="toggle toggle-primary" ${adminConfig.modelAttributes.memory ? 'checked' : ''} tabindex="0" aria-label="Memory" />
+              </label>
+              <label class="label cursor-pointer gap-2">
+                <span class="label-text">Cache</span>
+                <input type="checkbox" id="admin-cache" class="toggle toggle-primary" ${adminConfig.modelAttributes.cache ? 'checked' : ''} tabindex="0" aria-label="Cache" />
+              </label>
+            </div>
+            <div class="form-control flex flex-row gap-2 items-center">
+              <label class="label cursor-pointer gap-2">
+                <span class="label-text">Respect Context Window</span>
+                <input type="checkbox" id="admin-respect-context" class="toggle toggle-primary" ${adminConfig.modelAttributes.respect_context_window ? 'checked' : ''} tabindex="0" aria-label="Respect Context Window" />
+              </label>
+              <label class="label cursor-pointer gap-2">
+                <span class="label-text">Max Iter</span>
+                <input type="number" id="admin-max-iter" class="input input-bordered input-xs w-16" value="${adminConfig.modelAttributes.max_iter}" min="1" max="100" tabindex="0" aria-label="Max Iter" />
+              </label>
+            </div>
+            <div class="font-bold text-lg mb-1 mt-2">Task Settings</div>
+            <label for="admin-task-desc" class="label label-text font-semibold">Task Description</label>
+            <textarea class="textarea textarea-bordered textarea-sm" id="admin-task-desc" placeholder="Task Description" aria-label="Task Description" tabindex="0" rows="2">${adminConfig.taskDescription || ''}</textarea>
+            <label for="admin-expected-output" class="label label-text font-semibold">Expected Output</label>
+            <div class="relative">
+              <textarea class="textarea textarea-bordered textarea-sm" id="admin-expected-output" placeholder="Expected Output" aria-label="Expected Output" tabindex="0" rows="3" style="resize:vertical; max-height:120px; overflow:auto;">${adminConfig.expectedOutput || ''}</textarea>
+              <button type="button" id="toggle-expected-output" class="btn btn-xs btn-outline absolute right-2 bottom-2 z-10">Show More</button>
+            </div>
           </div>
-          <div class="form-control flex flex-row gap-2 items-center">
-            <label class="label cursor-pointer gap-2">
-              <span class="label-text">Respect Context Window</span>
-              <input type="checkbox" id="admin-respect-context" class="toggle toggle-primary" ${adminConfig.modelAttributes.respect_context_window ? 'checked' : ''} tabindex="0" aria-label="Respect Context Window" />
-            </label>
-            <label class="label cursor-pointer gap-2">
-              <span class="label-text">Max Iter</span>
-              <input type="number" id="admin-max-iter" class="input input-bordered input-xs w-16" value="${adminConfig.modelAttributes.max_iter}" min="1" max="100" tabindex="0" aria-label="Max Iter" />
-            </label>
-          </div>
-          <div class="divider my-1"></div>
-          <div class="font-bold text-lg mb-1">Task Settings</div>
-          <label for="admin-task-desc" class="label label-text font-semibold">Task Description</label>
-          <textarea class="textarea textarea-bordered textarea-sm" id="admin-task-desc" placeholder="Task Description" aria-label="Task Description" tabindex="0" rows="2">${adminConfig.taskDescription || ''}</textarea>
-          <label for="admin-expected-output" class="label label-text font-semibold">Expected Output</label>
-          <div class="relative">
-            <textarea class="textarea textarea-bordered textarea-sm" id="admin-expected-output" placeholder="Expected Output" aria-label="Expected Output" tabindex="0" rows="3" style="resize:vertical; max-height:120px; overflow:auto;">${adminConfig.expectedOutput || ''}</textarea>
-            <button type="button" id="toggle-expected-output" class="btn btn-xs btn-outline absolute right-2 bottom-2 z-10">Show More</button>
-          </div>
-          <div class="flex gap-2 mt-3">
+          <div class="col-span-2 flex gap-2 mt-3">
             <button type="submit" class="btn btn-primary btn-sm rounded-xl flex-1" tabindex="0" aria-label="Save">Save</button>
             <button id="admin-reset" type="button" class="btn btn-outline btn-sm rounded-xl flex-1" tabindex="0" aria-label="Reset to Default">Reset to Default</button>
           </div>
+          </form>
         </form>
       </div>
     </div>
