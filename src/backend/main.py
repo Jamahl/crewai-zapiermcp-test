@@ -37,7 +37,8 @@ sessions = {}
 
 
 
-AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") 
+AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 agentops.init(
     api_key=AGENTOPS_API_KEY,
     default_tags=['crewai']
@@ -121,7 +122,7 @@ async def chat_endpoint(request: Request):
             with MCPServerAdapter(ZapierCrew().mcp_server_params) as mcp_tools:
                 # LLM creation
                 if llm_provider == "openrouter":
-                    crew_llm = LLM(model=llm_model, base_url="https://openrouter.ai/api/v1")
+                    crew_llm = LLM(model=llm_model, base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
                 else:
                     crew_llm = LLM(model=llm_model)
                 # Always create a new agent with the latest config for every request

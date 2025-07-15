@@ -119,10 +119,10 @@ if (strippedModel.startsWith('openrouter/')) strippedModel = strippedModel.slice
   </label>
 </div>
             <div class="flex items-center gap-2 mt-1">
-              <span class="text-xs text-base-content/60">${modelPrefix}</span>
+              <span id="admin-llm-model-prefix" class="text-xs text-base-content/60">${modelPrefix}</span>
               <input class="input input-bordered input-sm flex-1" type="text" id="admin-llm-model" placeholder="Model name (e.g. gpt-4.1-nano or mistralai/mistral-small-3.2-24b-instruct)" value="${strippedModel}" aria-label="LLM Model" tabindex="0" />
             </div>
-            <div class="text-xs text-base-content/60 mt-2">Endpoint: ${adminConfig.llmProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1'}</div>
+            <div class="text-xs text-base-content/60 mt-2 admin-provider-endpoint">Endpoint: ${adminConfig.llmProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1'}</div>
             <div class="mb-1 mt-2"><span class="badge badge-accent badge-lg">Model Attributes</span></div>
             <div class="form-control flex flex-row gap-2 items-center">
               <label class="label cursor-pointer gap-2">
@@ -234,8 +234,8 @@ function render() {
   const providerRadios = document.querySelectorAll('input[name="admin-llm-provider"]');
   const modelInput = document.getElementById('admin-llm-model');
   const prefixSpan = document.getElementById('admin-llm-model-prefix');
-  const configCard = document.querySelector('.card-body');
-  if (providerRadios && modelInput && prefixSpan && configCard) {
+  const endpointDiv = document.querySelector('.admin-provider-endpoint');
+  if (providerRadios && modelInput && prefixSpan && endpointDiv) {
     providerRadios.forEach(radio => {
       radio.addEventListener('change', e => {
         const provider = e.target.value;
@@ -246,11 +246,12 @@ function render() {
         if (val.startsWith('openai/')) val = val.slice('openai/'.length);
         if (val.startsWith('openrouter/')) val = val.slice('openrouter/'.length);
         modelInput.value = val;
+        // Update endpoint display below
+        endpointDiv.textContent = `Endpoint: ${provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1'}`;
         // Update config and re-render UI so endpoint and all UI updates
         adminConfig.llmProvider = provider;
         adminConfig.llmModel = prefix + val;
         saveConfig(adminConfig);
-        render();
       });
     });
   }
@@ -276,31 +277,55 @@ function render() {
 
 
     adminForm.onsubmit = (e) => {
-      e.preventDefault();
-      const provider = document.getElementById('admin-llm-provider').value;
-      const modelName = document.getElementById('admin-llm-model').value;
-      const prefix = provider === 'openrouter' ? 'openrouter/' : 'openai/';
-      adminConfig = {
-        agentPrompt: {
-          role: document.getElementById('admin-role').value,
-          goal: document.getElementById('admin-goal').value,
-          backstory: document.getElementById('admin-backstory').value
-        },
-        llmProvider: provider,
-        llmModel: prefix + modelName,
-        modelAttributes: {
-          memory: document.getElementById('admin-memory').checked,
-          cache: document.getElementById('admin-cache').checked,
-          max_iter: parseInt(document.getElementById('admin-max-iter').value, 10) || 10,
-          respect_context_window: document.getElementById('admin-respect-context').checked
-        },
-        taskDescription: document.getElementById('admin-task-desc').value,
-        expectedOutput: document.getElementById('admin-expected-output').value
-      };
-      saveConfig(adminConfig);
-      render();
-      return false;
-    };
+  e.preventDefault();
+  const providerRadio = document.querySelector('input[name="admin-llm-provider"]:checked');
+  const provider = providerRadio ? providerRadio.value : 'openai';
+  const modelInput = document.getElementById('admin-llm-model');
+  const modelName = modelInput ? modelInput.value : '';
+  const prefix = provider === 'openrouter' ? 'openrouter/' : 'openai/';
+  adminConfig = {
+    agentPrompt: {
+      role: document.getElementById('admin-role')?.value || '',
+      goal: document.getElementById('admin-goal')?.value || '',
+      backstory: document.getElementById('admin-backstory')?.value || ''
+    },
+    llmProvider: provider,
+    llmModel: prefix + modelName,
+    modelAttributes: {
+      memory: document.getElementById('admin-memory')?.checked || false,
+      cache: document.getElementById('admin-cache')?.checked || false,
+      max_iter: parseInt(document.getElementById('admin-max-iter')?.value, 10) || 10,
+      respect_context_window: document.getElementById('admin-respect-context')?.checked || false
+    },
+    taskDescription: document.getElementById('admin-task-desc')?.value || '',
+    expectedOutput: document.getElementById('admin-expected-output')?.value || ''
+  };
+  saveConfig(adminConfig);
+
+  // Collapse the admin panel modal/dropdown BEFORE render
+  const dropdown = document.querySelector('.dropdown');
+  if (dropdown) {
+    // Only click the label if dropdown is open (aria-expanded=true or dropdown-content visible)
+    const label = dropdown.querySelector('label[tabindex="0"]');
+    const dropdownContent = dropdown.querySelector('.dropdown-content');
+    if (label && dropdownContent && dropdownContent.offsetParent !== null) {
+      label.blur(); // Remove focus to collapse dropdown
+      // Fallback: focus chat input if present, else document.body
+      setTimeout(() => {
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) {
+          chatInput.focus();
+        } else {
+          document.body.focus();
+        }
+      }, 10);
+    }
+  }
+
+  // Show DaisyUI toast notification (inject into document.body, not app)
+  showToast('Settings saved!');
+  return false;
+};
     document.getElementById('admin-reset').onclick = () => {
       resetConfig();
       adminConfig = loadConfig();
@@ -323,6 +348,25 @@ function render() {
   }
 }
 
+function showToast(message) {
+  // Use DaisyUI .toast markup
+  let toastContainer = document.querySelector('.toast.toast-top.toast-end');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.className = 'toast toast-top toast-end';
+    document.body.appendChild(toastContainer);
+  }
+  // Remove any existing toasts (only show one at a time)
+  while (toastContainer.firstChild) toastContainer.removeChild(toastContainer.firstChild);
+  const toast = document.createElement('div');
+  toast.className = 'alert alert-success';
+  toast.innerHTML = `<span>${message}</span>`;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('opacity-0');
+    setTimeout(() => toast.remove(), 300);
+  }, 1800);
+}
 
 // Real streaming agent response from FastAPI backend
 // Session ID for persistent chat context
