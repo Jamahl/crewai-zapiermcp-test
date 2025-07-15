@@ -141,7 +141,7 @@ function renderAdminPanel() {
               <div class="form-control">
                 <label class="label"><span class="label-text">Model</span></label>
                 <div class="flex items-center gap-2">
-                  <span>${modelPrefix}</span>
+                  <span id="model-prefix-span">${modelPrefix}</span>
                   <input type="text" id="admin-llm-model" class="input input-bordered input-sm flex-1" value="${strippedModel}">
                 </div>
               </div>
@@ -244,6 +244,16 @@ function render() {
   // Attach admin config form handler
   const adminForm = document.getElementById('admin-config-form');
   if (adminForm) {
+    // Update model prefix on provider change
+    const providerSelect = document.getElementById('admin-llm-provider');
+    const modelPrefixSpan = document.getElementById('model-prefix-span');
+    if (providerSelect && modelPrefixSpan) {
+      providerSelect.addEventListener('change', () => {
+        const provider = providerSelect.value;
+        modelPrefixSpan.textContent = provider === 'openrouter' ? 'openrouter/' : 'openai/';
+      });
+    }
+
     // Expand/collapse expected output textarea
     const expectedOutput = document.getElementById('admin-expected-output');
     const toggleBtn = document.getElementById('toggle-expected-output');
