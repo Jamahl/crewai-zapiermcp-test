@@ -69,7 +69,7 @@ function renderAdminPanel() {
     <option value="openrouter" ${adminConfig.llmProvider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
   `;
   // Only show/edit the model name, not the prefix
-  let modelPrefix = adminConfig.llmProvider === 'openrouter' ? 'openrouter/' : 'openai/';
+  let modelPrefix = adminConfig.llmProvider === 'openrouter' ? 'openrouter/' : adminConfig.llmProvider === 'groq' ? 'groq/' : 'openai/';
 let strippedModel = adminConfig.llmModel;
 if (strippedModel.startsWith('openai/')) strippedModel = strippedModel.slice('openai/'.length);
 if (strippedModel.startsWith('openrouter/')) strippedModel = strippedModel.slice('openrouter/'.length);
@@ -117,12 +117,16 @@ if (strippedModel.startsWith('openrouter/')) strippedModel = strippedModel.slice
     <input type="radio" name="admin-llm-provider" id="admin-llm-provider-openrouter" class="radio radio-neutral" value="openrouter" ${adminConfig.llmProvider === 'openrouter' ? 'checked' : ''} tabindex="0" aria-label="OpenRouter" />
     <span class="label-text">OpenRouter</span>
   </label>
+  <label class="flex items-center gap-2 cursor-pointer">
+    <input type="radio" name="admin-llm-provider" id="admin-llm-provider-groq" class="radio radio-neutral" value="groq" ${adminConfig.llmProvider === 'groq' ? 'checked' : ''} tabindex="0" aria-label="Groq" />
+    <span class="label-text">Groq</span>
+  </label>
 </div>
             <div class="flex items-center gap-2 mt-1">
               <span id="admin-llm-model-prefix" class="text-xs text-base-content/60">${modelPrefix}</span>
               <input class="input input-bordered input-sm flex-1" type="text" id="admin-llm-model" placeholder="Model name (e.g. gpt-4.1-nano or mistralai/mistral-small-3.2-24b-instruct)" value="${strippedModel}" aria-label="LLM Model" tabindex="0" />
             </div>
-            <div class="text-xs text-base-content/60 mt-2 admin-provider-endpoint">Endpoint: ${adminConfig.llmProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1'}</div>
+            <div class="text-xs text-base-content/60 mt-2 admin-provider-endpoint">Endpoint: ${modelPrefix}${adminConfig.llmModel.replace(modelPrefix, '')} (${adminConfig.llmProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : adminConfig.llmProvider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://api.openai.com/v1'})</div>
             <div class="mb-1 mt-2"><span class="badge badge-accent badge-lg">Model Attributes</span></div>
             <div class="form-control flex flex-row gap-2 items-center">
               <label class="label cursor-pointer gap-2">
