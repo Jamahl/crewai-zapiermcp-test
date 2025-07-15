@@ -80,6 +80,19 @@ function renderAdminPanel() {
           <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
         </form>
         <h3 class="font-bold text-lg mb-4">Admin Configuration</h3>
+        <div class="card bg-base-300 p-4 rounded-lg mb-6 text-xs">
+          <h4 class="font-bold text-sm mb-2">Current Config</h4>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
+            <div><strong>Provider:</strong> ${adminConfig.llmProvider}</div>
+            <div><strong>Model:</strong> ${adminConfig.llmModel}</div>
+            <div><strong>Role:</strong> ${adminConfig.agentPrompt.role}</div>
+            <div><strong>Goal:</strong> ${adminConfig.agentPrompt.goal}</div>
+            <div class="col-span-2"><strong>Backstory:</strong> ${adminConfig.agentPrompt.backstory.slice(0,50)}...</div>
+            <div><strong>Memory:</strong> ${adminConfig.modelAttributes.memory ? 'On' : 'Off'}</div>
+            <div><strong>Cache:</strong> ${adminConfig.modelAttributes.cache ? 'On' : 'Off'}</div>
+            <div><strong>Max Iter:</strong> ${adminConfig.modelAttributes.max_iter}</div>
+          </div>
+        </div>
         <form id="admin-config-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           <!-- Left Column -->
