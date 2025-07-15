@@ -69,10 +69,25 @@ function renderAdminPanel() {
     <option value="openrouter" ${adminConfig.llmProvider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
   `;
   // Only show/edit the model name, not the prefix
-  let modelPrefix = adminConfig.llmProvider === 'openrouter' ? 'openrouter/' : adminConfig.llmProvider === 'groq' ? 'groq/' : 'openai/';
+  const MODEL_OPTIONS = {
+  openai: [
+    'gpt-4.5-preview', 'gpt-4.1', 'gpt-4o', 'o1', 'o3', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o-mini', 'o1-mini', 'o3-mini'
+  ],
+  openrouter: [
+    'moonshotai/kimi-k2:free', 'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+    'google/gemma-3n-e2b-it:free', 'tngtech/deepseek-r1t2-chimera:free', 'moonshotai/kimi-dev-72b:free',
+    'deepseek/deepseek-r1-0528-qwen3-8b:free', 'mistralai/devstral-small-2505:free',
+    'moonshotai/kimi-vl-a3b-thinking:free', 'nvidia/llama-3.1-nemotron-ultra-253b-v1:free', 'rekaai/reka-flash-3:free'
+  ],
+  groq: [
+    'llama-3.1-8b-instant', 'meta-llama/llama-guard-4-12b', 'meta-llama/llama-4-maverick-17b-128e-instruct', 'mistral-saba-24b'
+  ]
+};
+let modelPrefix = adminConfig.llmProvider === 'openrouter' ? 'openrouter/' : adminConfig.llmProvider === 'groq' ? 'groq/' : 'openai/';
 let strippedModel = adminConfig.llmModel;
 if (strippedModel.startsWith('openai/')) strippedModel = strippedModel.slice('openai/'.length);
 if (strippedModel.startsWith('openrouter/')) strippedModel = strippedModel.slice('openrouter/'.length);
+if (strippedModel.startsWith('groq/')) strippedModel = strippedModel.slice('groq/'.length);
   // Config summary for user safety (DaisyUI card, no blue background)
   const configSummary = `
     <div class="card shadow-sm border border-base-300 mb-4 w-full" aria-live="polite">
@@ -123,9 +138,14 @@ if (strippedModel.startsWith('openrouter/')) strippedModel = strippedModel.slice
   </label>
 </div>
             <div class="flex items-center gap-2 mt-1">
-              <span id="admin-llm-model-prefix" class="text-xs text-base-content/60">${modelPrefix}</span>
-              <input class="input input-bordered input-sm flex-1" type="text" id="admin-llm-model" placeholder="Model name (e.g. gpt-4.1-nano or mistralai/mistral-small-3.2-24b-instruct)" value="${strippedModel}" aria-label="LLM Model" tabindex="0" />
-            </div>
+  <span id="admin-llm-model-prefix" class="text-xs text-base-content/60">${modelPrefix}</span>
+  <input class="input input-bordered input-sm flex-1" type="text" id="admin-llm-model" placeholder="Model name (e.g. gpt-4.1-nano or mistralai/mistral-small-3.2-24b-instruct)" value="${strippedModel}" aria-label="LLM Model" tabindex="0" />
+</div>
+<ul class="menu bg-base-200 rounded-box w-56 mt-2" id="admin-model-menu">
+  ${MODEL_OPTIONS[adminConfig.llmProvider].map(opt => `
+    <li><a class="${strippedModel === opt ? 'active bg-primary text-primary-content' : ''}" data-model="${opt}">${opt}</a></li>
+  `).join('')}
+</ul>
             <div class="text-xs text-base-content/60 mt-2 admin-provider-endpoint">Endpoint: ${modelPrefix}${adminConfig.llmModel.replace(modelPrefix, '')} (${adminConfig.llmProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : adminConfig.llmProvider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://api.openai.com/v1'})</div>
             <div class="mb-1 mt-2"><span class="badge badge-accent badge-lg">Model Attributes</span></div>
             <div class="form-control flex flex-row gap-2 items-center">
@@ -335,6 +355,25 @@ function render() {
       adminConfig = loadConfig();
       render();
     };
+  }
+
+  // Attach click handler for model menu
+  const modelMenu = document.getElementById('admin-model-menu');
+  if (modelMenu) {
+    modelMenu.querySelectorAll('a[data-model]').forEach(a => {
+      a.onclick = (e) => {
+        e.preventDefault();
+        const selectedModel = a.getAttribute('data-model');
+        const modelPrefix = adminConfig.llmProvider === 'openrouter' ? 'openrouter/' : adminConfig.llmProvider === 'groq' ? 'groq/' : 'openai/';
+        document.getElementById('admin-llm-model').value = selectedModel;
+        adminConfig.llmModel = modelPrefix + selectedModel;
+        saveConfig(adminConfig);
+        showToast('Model updated!');
+        // Visually update selection
+        modelMenu.querySelectorAll('a[data-model]').forEach(x => x.classList.remove('active', 'bg-primary', 'text-primary-content'));
+        a.classList.add('active', 'bg-primary', 'text-primary-content');
+      };
+    });
   }
   // Attach form handler for chat
   const form = document.getElementById('chat-form');
