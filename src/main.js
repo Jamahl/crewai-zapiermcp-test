@@ -59,15 +59,15 @@ function render() {
         ${activeConversation.messages.map(m => `
           <div class="chat ${m.role === 'user' ? 'chat-end' : 'chat-start'} items-start">
             <div class="chat-image avatar ${m.role === 'user' ? 'hidden sm:inline-block' : 'inline-block'}">
-                <div class="w-8 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                  <img src="${m.role === 'user' ? 'https://i.ibb.co/rKStJNDy/jamahlpic.jpg' : 'https://api.dicebear.com/7.x/bottts/svg?seed=agent'}" alt="${m.role}" />
-                </div>
+              <div class="w-8 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                <img src="${m.role === 'user' ? 'https://i.ibb.co/rKStJNDy/jamahlpic.jpg' : 'https://api.dicebear.com/7.x/bottts/svg?seed=agent'}" alt="${m.role}" />
               </div>
             </div>
-            <div class="chat-bubble ${m.role === 'user' ? 'chat-bubble-primary' : ''}">
-              ${m.role === 'agent' ? renderAgentMarkdown(m.content) : escapeHTML(m.content)}
-              <div class="text-xs text-base-content/60 mt-1 text-right">${formatTime(m.time)}</div>
+            <div class="chat-header">
+              ${m.role === 'user' ? 'You' : 'Agent'}
+              <time class="text-xs opacity-50">${formatTime(m.time)}</time>
             </div>
+            <div class="chat-bubble ${m.role === 'user' ? 'chat-bubble-primary' : ''}">${m.role === 'agent' ? renderAgentMarkdown(m.content) : escapeHTML(m.content)}</div>
           </div>
         `).join('')}
         ${agentThinking ? `
@@ -141,6 +141,10 @@ function render() {
         </a>
       </li>
     `).join('')}
+    <div class="divider"></div>
+    <li>
+      <button class="btn btn-ghost btn-block" onclick="document.getElementById('admin-modal').showModal()">Admin Config</button>
+    </li>
   `;
 
   // Attach sidebar handlers
