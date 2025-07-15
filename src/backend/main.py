@@ -18,11 +18,7 @@ from crewai_tools import MCPServerAdapter
 from datetime import datetime
 from src.backend.crew import ZapierCrew
 import time
-from mem0 import MemoryClient
 
-# Initialize mem0 MemoryClient using API key from environment
-mem0_api_key = os.getenv("MEM0_API_KEY")
-mem0_client = MemoryClient()
 
 load_dotenv()
 
@@ -39,11 +35,7 @@ app.add_middleware(
 # Session store: maps session_id to {agent, history}
 sessions = {}
 
-# Function to store user preferences (conversation history) in mem0
 
-def store_user_preferences(user_id: str, conversation: list):
-    """Store user preferences from conversation history using mem0"""
-    mem0_client.add(conversation, user_id=user_id)
 
 AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") 
 agentops.init(
@@ -197,10 +189,6 @@ Never mix code and explanation in the same code block.
                     tasks=[task],
                     verbose=True,
                     memory=True,
-                    memory_config={
-                        "provider": "mem0",
-                        "config": {"user_id": session_id},
-                    }
                 )
                 result = chat_crew.kickoff()
 

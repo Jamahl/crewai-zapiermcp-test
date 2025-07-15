@@ -70,7 +70,9 @@ function renderAdminPanel() {
   `;
   // Only show/edit the model name, not the prefix
   let modelPrefix = adminConfig.llmProvider === 'openrouter' ? 'openrouter/' : 'openai/';
-  let strippedModel = adminConfig.llmModel.startsWith(modelPrefix) ? adminConfig.llmModel.slice(modelPrefix.length) : adminConfig.llmModel;
+let strippedModel = adminConfig.llmModel;
+if (strippedModel.startsWith('openai/')) strippedModel = strippedModel.slice('openai/'.length);
+if (strippedModel.startsWith('openrouter/')) strippedModel = strippedModel.slice('openrouter/'.length);
   // Config summary for user safety (DaisyUI card, no blue background)
   const configSummary = `
     <div class="card shadow-sm border border-base-300 mb-4 w-full" aria-live="polite">
@@ -96,7 +98,7 @@ function renderAdminPanel() {
         ${configSummary}
         <form id="admin-config-form" class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
           <div class="flex flex-col gap-3">
-            <div class="font-bold text-lg mb-1">Agent Prompt</div>
+            <div class="mb-1"><span class="badge badge-primary badge-lg">Agent Prompt</span></div>
             <label for="admin-role" class="label label-text font-semibold">Role</label>
             <input class="input input-bordered input-sm" type="text" id="admin-role" placeholder="Role" value="${adminConfig.agentPrompt.role}" aria-label="Role" tabindex="0" />
             <label for="admin-goal" class="label label-text font-semibold">Goal</label>
@@ -105,15 +107,23 @@ function renderAdminPanel() {
             <textarea class="textarea textarea-bordered textarea-sm" id="admin-backstory" placeholder="Backstory" aria-label="Backstory" tabindex="0">${adminConfig.agentPrompt.backstory}</textarea>
           </div>
           <div class="flex flex-col gap-3">
-            <div class="font-bold text-lg mb-1">LLM Provider & Model</div>
-            <select class="select select-bordered select-sm" id="admin-llm-provider" aria-label="LLM Provider" tabindex="0">
-              ${providerOptions}
-            </select>
+            <div class="mb-1"><span class="badge badge-secondary badge-lg">LLM Provider & Model</span></div>
+            <div class="flex gap-4 items-center mt-1 mb-2" role="radiogroup" aria-label="LLM Provider">
+  <label class="flex items-center gap-2 cursor-pointer">
+    <input type="radio" name="admin-llm-provider" id="admin-llm-provider-openai" class="radio radio-neutral" value="openai" ${adminConfig.llmProvider === 'openai' ? 'checked' : ''} tabindex="0" aria-label="OpenAI" />
+    <span class="label-text">OpenAI</span>
+  </label>
+  <label class="flex items-center gap-2 cursor-pointer">
+    <input type="radio" name="admin-llm-provider" id="admin-llm-provider-openrouter" class="radio radio-neutral" value="openrouter" ${adminConfig.llmProvider === 'openrouter' ? 'checked' : ''} tabindex="0" aria-label="OpenRouter" />
+    <span class="label-text">OpenRouter</span>
+  </label>
+</div>
             <div class="flex items-center gap-2 mt-1">
               <span class="text-xs text-base-content/60">${modelPrefix}</span>
               <input class="input input-bordered input-sm flex-1" type="text" id="admin-llm-model" placeholder="Model name (e.g. gpt-4.1-nano or mistralai/mistral-small-3.2-24b-instruct)" value="${strippedModel}" aria-label="LLM Model" tabindex="0" />
             </div>
-            <div class="font-bold text-lg mb-1 mt-2">Model Attributes</div>
+            <div class="text-xs text-base-content/60 mt-2">Endpoint: ${adminConfig.llmProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1'}</div>
+            <div class="mb-1 mt-2"><span class="badge badge-accent badge-lg">Model Attributes</span></div>
             <div class="form-control flex flex-row gap-2 items-center">
               <label class="label cursor-pointer gap-2">
                 <span class="label-text">Memory</span>
@@ -134,7 +144,7 @@ function renderAdminPanel() {
                 <input type="number" id="admin-max-iter" class="input input-bordered input-xs w-16" value="${adminConfig.modelAttributes.max_iter}" min="1" max="100" tabindex="0" aria-label="Max Iter" />
               </label>
             </div>
-            <div class="font-bold text-lg mb-1 mt-2">Task Settings</div>
+            <div class="mb-1 mt-2"><span class="badge badge-info badge-lg">Task Settings</span></div>
             <label for="admin-task-desc" class="label label-text font-semibold">Task Description</label>
             <textarea class="textarea textarea-bordered textarea-sm" id="admin-task-desc" placeholder="Task Description" aria-label="Task Description" tabindex="0" rows="2">${adminConfig.taskDescription || ''}</textarea>
             <label for="admin-expected-output" class="label label-text font-semibold">Expected Output</label>
@@ -220,6 +230,30 @@ function render() {
 
   // Attach admin config form handler
   const adminForm = document.getElementById('admin-config-form');
+  // Live prefix update logic for provider radio buttons
+  const providerRadios = document.querySelectorAll('input[name="admin-llm-provider"]');
+  const modelInput = document.getElementById('admin-llm-model');
+  const prefixSpan = document.getElementById('admin-llm-model-prefix');
+  const configCard = document.querySelector('.card-body');
+  if (providerRadios && modelInput && prefixSpan && configCard) {
+    providerRadios.forEach(radio => {
+      radio.addEventListener('change', e => {
+        const provider = e.target.value;
+        let prefix = provider === 'openrouter' ? 'openrouter/' : 'openai/';
+        prefixSpan.textContent = prefix;
+        // Remove any prefix from model input value
+        let val = modelInput.value;
+        if (val.startsWith('openai/')) val = val.slice('openai/'.length);
+        if (val.startsWith('openrouter/')) val = val.slice('openrouter/'.length);
+        modelInput.value = val;
+        // Update config and re-render UI so endpoint and all UI updates
+        adminConfig.llmProvider = provider;
+        adminConfig.llmModel = prefix + val;
+        saveConfig(adminConfig);
+        render();
+      });
+    });
+  }
   if (adminForm) {
     // Expand/collapse expected output textarea
     const expectedOutput = document.getElementById('admin-expected-output');
